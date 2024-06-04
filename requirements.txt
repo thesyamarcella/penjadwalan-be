@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+google-auth-oauthlib
+google-api-python-client
+itsdangerous
+PyJWT
+aiomysql
+SQLAlchemy
+python-dotenv
