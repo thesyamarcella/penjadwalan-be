@@ -1,4 +1,3 @@
-# controller/dosen_service.py
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func
@@ -22,6 +21,7 @@ async def createDosen(dosen: CreateDosen, session: AsyncSession) -> DosenModel:
         alamat=dosen.alamat,
         agama=dosen.agama,
         telp_seluler=dosen.telp_seluler,
+        email=dosen.email
     )
     session.add(new_dosen)
     await session.commit()
@@ -76,4 +76,3 @@ async def updateDosen(id: int, dosen: UpdateDosen, session:AsyncSession) -> Dose
     await session.commit()
     await session.refresh(currentDosen)
     return currentDosen
-
