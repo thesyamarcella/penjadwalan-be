@@ -83,7 +83,6 @@ def convert_input_to_bin():
            CourseClass.find("Lab Pemrograman Web"), Dosen.find("Febri Damatraseta"), Kelas.find("TI-23-PA"),
            CourseClass.find("Manajemen Projek"), Dosen.find("Anton Sukamto"), Kelas.find("TI-21-KA")
            ]
-    print(cpg)
 
     for _c in range(len(cpg)):
         if _c % 3:  # CourseClass
@@ -140,16 +139,26 @@ def slot_clash(a, b):
         return 1
     return 0
 
+
 def dosen_preferred_time_slots(chromosomes):
     scores = 0
     for _c in chromosomes:
         dosen_index = int(dosen_bits(_c), 2)
-        dosen = Dosen.dosen[dosen_index]
         slot_index = int(slot_bits(_c), 2)
-        preferred_slots = dosen.preferred_time_slots
-        if Schedule.schedules[slot_index] in preferred_slots:
-            scores += 1
+        score = dosen_preferred_time_slots_helper(dosen_index, slot_index)
+        scores += score
     return scores
+
+def dosen_preferred_time_slots_helper(dosen_index, slot_index):
+    score = 0
+    preferred_slots = Dosen.dosen[dosen_index].preferred_time_slots
+    schedule = Schedule.schedules[slot_index]
+    for preferred_slot in preferred_slots:
+        if preferred_slot.start == schedule.start and preferred_slot.day == schedule.day:
+            score += 1
+            break
+    return score
+
 
 
 # checks that a faculty member teaches only one course at a time.
@@ -271,7 +280,7 @@ def evaluate(chromosomes):
     score = score + kelas_member_one_class(chromosomes)
     score = score + appropriate_room(chromosomes)
     score = score + appropriate_timeslot(chromosomes)
-    score += dosen_preferred_time_slots(chromosomes)
+    score += dosen_preferred_time_slots(chromosomes) * 2
 
     # Tambahkan evaluasi khusus untuk jadwal kelas malam
     for chromosome in chromosomes:
@@ -470,3 +479,4 @@ def main():
 
 
 main()
+
