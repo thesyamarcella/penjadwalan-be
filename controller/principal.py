@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 import requests
 from sqlalchemy.ext.asyncio import AsyncSession
 from model.user_model import User as UserModel
-from .user_controller import get_user_by_email
+from .user_controller import getUserByEmail
 
 load_dotenv()
 
@@ -45,7 +45,7 @@ async def oauth(response: Response):
 async def redirectOauth(code: str, session: AsyncSession):
     if not code:
         raise HTTPException(status_code=400, detail="Authorization code not found")
-
+    print('test')
     try:
         # Exchange authorization code for tokens
         flow.fetch_token(code=code)
@@ -56,8 +56,10 @@ async def redirectOauth(code: str, session: AsyncSession):
         # Get user data
         user_data = getUserData(credentials.token)
 
+        print("get user email")
         #get user by email
-        currentUserDb = await get_user_by_email(user_data['email'], session)
+        currentUserDb = await getUserByEmail(user_data['email'], session)
+        print(currentUserDb)
 
         if not currentUserDb:
             user = UserModel(
@@ -72,7 +74,8 @@ async def redirectOauth(code: str, session: AsyncSession):
             await session.refresh(user)
 
         # Return user data as JSON
-        return JSONResponse(content={"user_data": user_data, "token": credentials.token})
+        token = generate_token_oauth(credentials, user_data['given_name'], user_data['email'], user_data['picture']);
+        return JSONResponse(content={"user_data": user_data, "token": token})
 
     except Exception as e:
         print(f"Error logging in with OAuth2 user: {e}")
@@ -91,14 +94,15 @@ def getUserData(access_token: str):
         print(f"Error fetching user data: {e}")
         return None
 
-def generate_token(credentials):
+def generate_token_oauth(credentials, username, userId, profile_picture):
     payload = {
         "token": credentials.token,
         "refresh_token": credentials.refresh_token,
         "token_uri": credentials.token_uri,
-        "client_id": credentials.client_id,
-        "client_secret": credentials.client_secret,
         "scopes": credentials.scopes,
+        "username": username,
+        "userId": userId,
+        "profile_picture": profile_picture,
         "exp": int(time.time()) + 12000
     }
     encoded_jwt = jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)

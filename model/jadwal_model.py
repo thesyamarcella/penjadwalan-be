@@ -1,6 +1,6 @@
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 from typing import List
-from sqlalchemy import String, ForeignKey, DateTime
+from sqlalchemy import String, ForeignKey, DateTime, Boolean
 from datetime import datetime
 
 from . import Base
@@ -22,11 +22,11 @@ class Jadwal(Base):
     start_date_time: Mapped[datetime] = mapped_column(DateTime)
     end_date_time: Mapped[datetime] = mapped_column(DateTime)
 
+    is_created: Mapped[bool] = mapped_column(Boolean, default=False)
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now) 
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)  
 
 from .slot_model import Slot
 from .ruangan_model import Ruangan
 from .pengajaran_model import Pengajaran
-from .dosen_model import Dosen
-from .semester_model import Semester

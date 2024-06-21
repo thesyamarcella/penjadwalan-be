@@ -10,7 +10,7 @@ class BaseModel(BaseModel):
         from_attributes = True
 
 class DosenBase(BaseModel):
-    _tablename_ = "dosen"
+    __tablename__ = "dosen"
 
     nip: str
     nidn: str
