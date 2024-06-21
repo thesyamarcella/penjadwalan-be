@@ -366,7 +366,6 @@ def acceptance_probability(old_cost, new_cost, temperature):
         return math.exp((old_cost - new_cost) / temperature)
 
 def simulated_annealing():
-    global population 
     alpha = 0.9
     T = 1.0
     T_min = 0.00001
@@ -389,13 +388,12 @@ def simulated_annealing():
         # Calculate and store score of the current iteration
         simulated_annealing_scores.append(evaluate(population[0]))
     end_time = time.time()  
-    print("\n----------------------- -----------------------\n")
+    print("\n----------------------- Simulated Annealing -----------------------\n")
     for lec in population[0]:
         print_chromosome(lec)
     print("Score: ", evaluate(population[0]))
     print("Time taken for Simulated Annealing: {:.4f} seconds".format(end_time - start_time))
-    
-population = [] 
+    return population
 
 def chromosome_to_json(chromosome):
     schedule_data = []
@@ -430,7 +428,6 @@ def print_schedule_per_class(best_solution):
             print(f"{schedule['schedule']} | {schedule['room']} | {schedule['course']} | {schedule['lecturer']}")
         print()
 
-
 def genetic_algorithm():
     start_time = time.time() 
     generation = 0
@@ -452,7 +449,7 @@ def genetic_algorithm():
                 print_chromosome(lec)
             print_schedule_per_class(best_solution)
             print("Time taken for Genetic Algorithm: {:.4f} seconds".format(end_time - start_time))
-            break
+            return population  # Return the final population after the algorithm finishes
         
         # Otherwise continue
         else:
@@ -462,21 +459,41 @@ def genetic_algorithm():
                 mutate(population[_c])
         generation = generation + 1
         
-    # Convert the best solution to JSON
-    if best_solution:
-        json_data = chromosome_to_json(best_solution)
-        # Save JSON data to file
-        with open("schedule_data.json", "w") as json_file:
-            json.dump(json_data, json_file, indent=4)
-
-
 def main():
     random.seed()
-    simulated_annealing()
-    genetic_algorithm()
     
-    all_schedules = []
-
+    print("\nRunning Genetic Algorithm...")
+    population_genetic = genetic_algorithm()
+    
+    print("\nRunning Simulated Annealing...")
+    population_sa = simulated_annealing()
+    
+    print("\nRunning Genetic Algorithm using final population from Simulated Annealing...")
+    population_genetic_sa = genetic_algorithm_using_population(population_sa)
+    
+    print("\nRunning Simulated Annealing using final population from Genetic Algorithm...")
+    population_sa_genetic = simulated_annealing_using_population(population_genetic)
+    
+    # Print the schedules for each algorithm
+    if population_genetic:
+        best_solution_genetic = max(population_genetic, key=evaluate)
+        print("\nGenetic Algorithm Final Schedule:")
+        print_schedule_per_class(best_solution_genetic)
+        
+    if population_sa:
+        best_solution_sa = population_sa[0]
+        print("\nSimulated Annealing Final Schedule:")
+        print_schedule_per_class(best_solution_sa)
+        
+    if population_genetic_sa:
+        best_solution_genetic_sa = max(population_genetic_sa, key=evaluate)
+        print("\nGenetic Algorithm using final population from Simulated Annealing Final Schedule:")
+        print_schedule_per_class(best_solution_genetic_sa)
+        
+    if population_sa_genetic:
+        best_solution_sa_genetic = population_sa_genetic[0]
+        print("\nSimulated Annealing using final population from Genetic Algorithm Final Schedule:")
+        print_schedule_per_class(best_solution_sa_genetic)
 
 main()
 
