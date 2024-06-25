@@ -1,6 +1,8 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func, text
+from schemas.jadwal_sementara_schema import JadwalSementaraUpdate, slot_model_to_dict, ruangan_model_to_dict, jadwal_sementara_to_dict
+from itertools import product
 from typing import List
 
 from model.mata_kuliah_model import MataKuliah as MataKuliahModel
@@ -205,6 +207,45 @@ async def generateJadwal(token, session: AsyncSession):
         print(dates)
     return 
 
+async def checkJadwalKosong(sessionL: AsyncSession):
+    slots_query = select(SlotModel)
+    slots_result = await sessionL.execute(slots_query)
+    slots = slots_result.scalars().all()
+
+    rooms_query = select(RuanganModel)
+    rooms_result = await sessionL.execute(rooms_query)
+    rooms = rooms_result.scalars().all()
+
+    all_combinations = list(product(slots, rooms))
+
+    used_combinations_query = select(JadwalSementaraModel.id_slot, JadwalSementaraModel.id_ruangan)
+    used_combinations_result = await sessionL.execute(used_combinations_query)
+    used_combinations = used_combinations_result.all()
+
+    used_combinations_set = set((combination.id_slot, combination.id_ruangan) for combination in used_combinations)
+
+    empty_combinations = [(slot, room) for slot, room in all_combinations if (slot.id, room.id) not in used_combinations_set]
+    empty_combinations_dict = [
+        {
+            "slot": slot_model_to_dict(slot),
+            "room": ruangan_model_to_dict(room)
+        }
+        for slot, room in empty_combinations
+    ]
+
+    return empty_combinations_dict
+
+async def updateJadwalSementara(id: int, jadwalSementara: JadwalSementaraUpdate, session: AsyncSession):
+    currentJadwalSementara = await session.get(JadwalSementaraModel, id)
+    currentJadwalSementara.updated_at = datetime.now()
+    currentJadwalSementara.id_slot = jadwalSementara.id_slot
+    currentJadwalSementara.id_ruangan = jadwalSementara.id_ruangan
+    currentJadwalSementara.is_conflicted = False
+    session.add(currentJadwalSementara)
+    await session.commit()
+    await session.refresh(currentJadwalSementara) 
+    return jadwal_sementara_to_dict(currentJadwalSementara)
+
 def get_dates_by_day(day_name, start_date: date, end_date: date):
     day_name_to_weekday = {
         'Mon': 0,
@@ -240,3 +281,4 @@ def verify_token(token):
         return None
     except jwt.InvalidTokenError:
         return None
+    
