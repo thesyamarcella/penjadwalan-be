@@ -167,13 +167,14 @@ def enforce_no_class_overlap(schedule):
         # Check for time conflicts within the same class
         conflict = False
         for existing_slot in class_schedules[class_.nama]:
-            existing_course, existing_room, existing_time, _, _ = existing_slot
+            existing_course, existing_room, existing_time, existing_teacher, existing_class = existing_slot
             if existing_time.day == time.day and (
                 (existing_time.start_time <= time.start_time < existing_time.end_time) or
                 (time.start_time <= existing_time.start_time < time.end_time)
             ):
                 conflict = True
-                conflict_list.append([teacher.id, course.id, time.id, class_.id, room.id])
+                conflict_list.append([existing_teacher.id, existing_course.id, time.id, class_.id, existing_room.id])
+                conflict_list.append([teacher.id, existing_course.id, time.id, class_.id, room.id])
                 conflict_list_message.append(f"Conflict detected for {class_.nama}: {course.nama} overlaps with {existing_course.nama} on {time.day} at {time.start_time}-{time.end_time}")
                 print(f"Conflict detected for {class_.nama}: {course.nama} overlaps with {existing_course.nama} on {time.day} at {time.start_time}-{time.end_time}")
                 break  # No need to check further for this slot
