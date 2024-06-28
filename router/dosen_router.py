@@ -1,35 +1,26 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from schemas.dosen_schema import CreateDosen, Dosen as DosenSchema, dosen_model_to_dict
+from schemas.jadwal_sementara_schema import jadwal_sementara_to_dict
 from util.db_connection import AsyncSession, get_async_session
-from controller.dosen_controller import *
+from controller.jadwal_controller import *
 from schemas.pagination_schema import Page
+from fastapi.security import HTTPBearer
+from typing import Annotated
+
+security = HTTPBearer()
+
+async def get_token(token: str = Depends(security)):
+    return token
 
 router = APIRouter()
 
-@router.post("", response_model=DosenSchema)
-async def create_new_dosen(dosen: CreateDosen, session: AsyncSession = Depends(get_async_session)):
-    new_dosen = await createDosen(dosen, session)
-    if not new_dosen:
-        raise HTTPException(status_code=400, detail="Dosen could not be created")
-    return new_dosen
+@router.post("/temp")
+async def generate_jadwal_sementara(session: AsyncSession = Depends(get_async_session)):
+    best_violating_preferences, conflict_list = await generateJadwalSementara(session)
+    return {"best_violating_preferences": best_violating_preferences, "conflict_list": conflict_list}
 
-
-@router.delete("/{id}")
-async def delete_dosen_by_id(id: int, session: AsyncSession = Depends(get_async_session)):
-    deleted = await deleteDosen(id, session)
-    if not deleted:
-        raise HTTPException(status_code=404, detail=f"Dosen with id {id} not found")
-    return {"message": f"Dosen with id {id} deleted successfully"}
-
-@router.get("/{id}", response_model=DosenSchema)
-async def get_dosen_by_id(id: int, session: AsyncSession = Depends(get_async_session)):
-    dosen = await getDosenById(id, session)
-    return dosen
-
-
-@router.get("", response_model=Page[DosenSchema])
-async def get_dosen_pageable(
+@router.get("/temp")
+async def get_jadwal_sementara_pageable(
     skip: int = Query(1, alias='page', description="Page number"),
     limit: int = Query(10, alias='size', description="Page size"),
     session = Depends(get_async_session)
@@ -38,15 +29,36 @@ async def get_dosen_pageable(
         offset = (skip - 1) * limit
     else:
         offset = 0
-    dosen_list = await getDosenPageable(session, skip=offset, limit=limit)
-    total = await getDosenCount(session)
-    items_dict = [dosen_model_to_dict(d) for d in dosen_list]
+    jadwal_list = await getJadwalSementaraPageable(session, skip=offset, limit=limit)
+    total = await getJadwalSementaraCount(session)
+    items_dict = [jadwal_sementara_to_dict(d) for d in jadwal_list]
     return Page(total_elements=total, items=items_dict, size=limit, page=skip)
-        
-@router.put("{id}", response_model=DosenSchema)
-async def update_dosen(
-    id: int,
-    dosen: UpdateDosen,
+
+@router.post("/")
+async def generate_all_jadwal(
+    credentials: str = Depends(get_token),
     session = Depends(get_async_session)
 ):
-    return await updateDosen(id, dosen, session)
+    await generateJadwal(credentials.credentials, session)
+    return
+
+@router.get("/empty")
+async def get_jadwal_empty(
+    session = Depends(get_async_session)
+):
+    return await checkJadwalKosong(session)
+    
+@router.put("/temp/{id}")
+async def update_jadwal_sementara(
+    id: int,
+    jadwal: JadwalSementaraUpdate,
+    session = Depends(get_async_session)
+):
+    return await updateJadwalSementara(id, jadwal, session)
+
+@router.post("/new-temp")
+async def add_new_jadwal_sementara(
+    jadwal: JadwalSementaraCreate,
+    session = Depends(get_async_session)
+):
+    return await addJadwalSementara(jadwal, session)

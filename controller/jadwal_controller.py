@@ -1,8 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func, text
-from schemas.jadwal_sementara_schema import JadwalSementaraUpdate, slot_model_to_dict, ruangan_model_to_dict, jadwal_sementara_to_dict
-from itertools import product
 from typing import List
 
 from model.mata_kuliah_model import MataKuliah as MataKuliahModel
@@ -17,7 +15,8 @@ from exceptions.entity_not_found_exception import EntityNotFoundException
 from exceptions.bad_request_exception import BadRequestException
 from .cara1 import generate_schedule
 from datetime import date, timedelta, datetime
-from schemas.jadwal_sementara_schema import jadwal_sementara_to_dict
+from schemas.jadwal_sementara_schema import jadwal_sementara_to_dict, JadwalSementaraUpdate, JadwalSementaraCreate
+from itertools import product
 
 from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.security import OAuth2PasswordBearer
@@ -34,6 +33,9 @@ from typing import Optional
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import pytz
+
+from schemas.ruangan_schema import ruangan_model_to_dict
+from schemas.slot_schema import slot_model_to_dict
 
 from dotenv import load_dotenv
 
@@ -207,6 +209,42 @@ async def generateJadwal(token, session: AsyncSession):
         print(dates)
     return 
 
+def get_dates_by_day(day_name, start_date: date, end_date: date):
+    day_name_to_weekday = {
+        'Mon': 0,
+        'Tue': 1,
+        'Wed': 2,
+        'Thu': 3, 
+        'Fri': 4, 
+        'Sat': 5,
+        'Sun': 6
+    }
+
+    if day_name not in day_name_to_weekday:
+        raise ValueError(f"Invalid day name: {day_name}")
+
+    target_weekday = day_name_to_weekday[day_name]
+
+    current_date = start_date
+    while current_date.weekday() != target_weekday:
+        current_date += timedelta(days=1)
+
+    target_dates = []
+    while current_date <= end_date:
+        target_dates.append(current_date)
+        current_date += timedelta(weeks=1)
+
+    return target_dates
+
+def verify_token(token):
+    try:
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        return payload
+    except jwt.ExpiredSignatureError:
+        return None
+    except jwt.InvalidTokenError:
+        return None
+    
 async def checkJadwalKosong(sessionL: AsyncSession):
     slots_query = select(SlotModel)
     slots_result = await sessionL.execute(slots_query)
@@ -246,39 +284,12 @@ async def updateJadwalSementara(id: int, jadwalSementara: JadwalSementaraUpdate,
     await session.refresh(currentJadwalSementara) 
     return jadwal_sementara_to_dict(currentJadwalSementara)
 
-def get_dates_by_day(day_name, start_date: date, end_date: date):
-    day_name_to_weekday = {
-        'Mon': 0,
-        'Tue': 1,
-        'Wed': 2,
-        'Thu': 3, 
-        'Fri': 4, 
-        'Sat': 5,
-        'Sun': 6
-    }
-
-    if day_name not in day_name_to_weekday:
-        raise ValueError(f"Invalid day name: {day_name}")
-
-    target_weekday = day_name_to_weekday[day_name]
-
-    current_date = start_date
-    while current_date.weekday() != target_weekday:
-        current_date += timedelta(days=1)
-
-    target_dates = []
-    while current_date <= end_date:
-        target_dates.append(current_date)
-        current_date += timedelta(weeks=1)
-
-    return target_dates
-
-def verify_token(token):
-    try:
-        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
-        return payload
-    except jwt.ExpiredSignatureError:
-        return None
-    except jwt.InvalidTokenError:
-        return None
-    
+async def addJadwalSementara(jadwalSementara: JadwalSementaraCreate, session: AsyncSession):
+    query = text("""
+        INSERT INTO jadwal_sementara (id_slot, id_ruangan, id_pengajaran, is_conflicted, created_at, updated_at)
+        VALUES (:idSlot, :idRuangan, :idJadwal, :check, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    """)
+    result = await session.execute(query, {"idSlot": jadwalSementara.id_slot, "idRuangan": jadwalSementara.id_ruangan, "idJadwal": jadwalSementara.id_pengajaran, "check": jadwalSementara.is_conflicted or False})
+    await session.commit()
+    jadwal = await session.get(JadwalSementaraModel, result.lastrowid)
+    return jadwal_sementara_to_dict(jadwal)

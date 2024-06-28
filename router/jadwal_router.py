@@ -55,3 +55,10 @@ async def update_jadwal_sementara(
     session = Depends(get_async_session)
 ):
     return await updateJadwalSementara(id, jadwal, session)
+
+@router.post("/new-temp")
+async def add_new_jadwal_sementara(
+    jadwal: JadwalSementaraCreate,
+    session = Depends(get_async_session)
+):
+    return await addJadwalSementara(jadwal, session)

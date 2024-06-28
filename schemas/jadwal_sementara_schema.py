@@ -1,4 +1,3 @@
-#schemas/jadwal_sementara_schema.py
 from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import Optional, List
@@ -15,7 +14,7 @@ class JadwalSementaraBase(BaseModel):
     id_pengajaran: int
     id_slot: int
     id_ruangan: int
-    is_conflicted: bool
+    is_conflicted: bool = False
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
 
