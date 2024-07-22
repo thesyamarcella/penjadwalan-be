@@ -114,12 +114,12 @@ def fitness(schedule):
 
         # Track room and class schedules
         if (room.nama, time.start_time, time.day) in room_schedule:
-            fitness_value -= 20  # Heavy penalty for room conflict
+            fitness_value -= 50  # Heavy penalty for room conflict
         else:
             room_schedule[(room.nama, time.start_time, time.day)] = slot
 
         if (class_.nama, time.start_time, time.day) in class_schedule:
-            fitness_value -= 20  # Heavy penalty for class conflict
+            fitness_value -= 50  # Heavy penalty for class conflict
         else:
             class_schedule[(class_.nama, time.start_time, time.day)] = slot
 
@@ -222,6 +222,36 @@ def enforce_no_teacher_overlap(schedule):
 
     return new_schedule
 
+def enforce_time_distribution(schedule):
+    day_distribution = {day: 0 for day in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']}
+    new_schedule = []
+
+    # Hitung distribusi awal
+    for slot in schedule:
+        _, _, time, _, _ = slot
+        day_distribution[time.day] += 1
+
+    # Tentukan hari dengan distribusi maksimum dan minimum
+    max_day = max(day_distribution, key=day_distribution.get)
+    min_day = min(day_distribution, key=day_distribution.get)
+
+    # Redistribusi slot waktu
+    for slot in schedule:
+        course, room, time, teacher, class_ = slot
+        if day_distribution[max_day] - day_distribution[min_day] > 1:
+            if time.day == max_day:
+                new_time = next((t for t in schedules if t.day == min_day and t.start_time == time.start_time), None)
+                if new_time:
+                    time = new_time
+                    day_distribution[max_day] -= 1
+                    day_distribution[min_day] += 1
+        new_schedule.append((course, room, time, teacher, class_))
+
+        # Perbarui hari dengan distribusi maksimum dan minimum
+        max_day = max(day_distribution, key=day_distribution.get)
+        min_day = min(day_distribution, key=day_distribution.get)
+
+    return new_schedule
 """# Genetic Algorithm"""
 
 def genetic_algorithm(population, generations, mutation_rate):
@@ -265,29 +295,18 @@ def mutate(individual, mutation_rate):
                 new_class = random.choice([c for c in classes if c.nama in valid_classes])
                 new_room = random.choice([r for r in rooms if r.kapasitas >= new_class.kapasitas and (course.is_lab == r.is_lab)])
                 new_time = random.choice(schedules)
+                
+                # Ensure the new time does not create conflicts and is distributed well
+                new_time_distribution = enforce_time_distribution([(course, new_room, new_time, new_teacher, new_class)])
+                if len(new_time_distribution) > 0:
+                    new_time = new_time_distribution[0][2]
+                    
                 individual[index] = (course, new_room, new_time, new_teacher, new_class)
     return individual
 
+
 """# Simulated Annealing"""
 
-def simulated_annealing(solution, temperature, cooling_rate):
-    fitness_history = []  # To store fitness values for each iteration
-    current_solution = solution
-    current_fitness, current_violating_preferences = fitness(current_solution)
-    fitness_history.append(current_fitness)
-
-    while temperature > 1:
-        new_solution = mutate(current_solution[:], 1.0)
-        new_fitness, new_violating_preferences = fitness(new_solution)
-
-        if (new_fitness, len(new_violating_preferences)) > (current_fitness, len(current_violating_preferences)) or \
-           math.exp(((new_fitness - current_fitness) - (len(new_violating_preferences) - len(current_violating_preferences))) / temperature) > random.random():
-            current_solution, current_fitness, current_violating_preferences = new_solution, new_fitness, new_violating_preferences
-
-        fitness_history.append(current_fitness)
-        temperature *= cooling_rate
-
-    return current_solution, current_violating_preferences, fitness_history
 
 """# Initial Population
 
@@ -310,7 +329,7 @@ def create_initial_population(population_size):
                         schedule.append((course, room, time, teacher_obj, class_))
                     except StopIteration:
                         print(f"Warning: No match found for course: {course_name}, class: {class_name}, or teacher: {teacher}")
-        population.append(schedule)
+        population.append(enforce_time_distribution(schedule))
     return population
 
 def generate_mengajar_attribute():
@@ -348,19 +367,21 @@ def generate_schedule(_classes, _dosen, _course_classes, _rooms, _schedules, _do
     population_size = 50
     population = create_initial_population(population_size)
 
-    generations = 500
+    generations = 1000
     mutation_rate = 0.05
-    initial_temperature = 10000
-    cooling_rate = 0.99
+    # initial_temperature = 10000
+    # cooling_rate = 0.99
 
 
     best_solution, best_violating_preferences, ga_fitness_history = genetic_algorithm(population, generations, mutation_rate)
-    best_solution, best_violating_preferences, sa_fitness_history = simulated_annealing(best_solution, initial_temperature, cooling_rate)
-    combined_fitness_history = ga_fitness_history + sa_fitness_history
+    # best_solution, best_violating_preferences, sa_fitness_history = simulated_annealing(best_solution, initial_temperature, cooling_rate)
+    # combined_fitness_history = ga_fitness_history + sa_fitness_history
 
     best_solution = enforce_shift_constraints(best_solution)
     best_solution = enforce_no_class_overlap(best_solution)
     best_solution = enforce_no_teacher_overlap(best_solution)
+    best_solution = enforce_time_distribution(best_solution)
+
 
     best_score, _ = fitness(best_solution)  # Calculate the score
     print("Best Solution (Score: {}):".format(int(abs(best_score)/100)))

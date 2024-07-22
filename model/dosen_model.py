@@ -10,9 +10,9 @@ class Dosen(Base):
     __tablename__ = "dosen"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    nip: Mapped[str] = mapped_column(String(50), nullable=True)  # Specify length
-    nidn: Mapped[str] = mapped_column(String(50), nullable=True)  # Specify length
-    id_pegawai: Mapped[str] = mapped_column(String(50), nullable=True)  # Specify length
+    nip: Mapped[str] = mapped_column(String(50), nullable=True) 
+    nidn: Mapped[str] = mapped_column(String(50), nullable=True)  
+    id_pegawai: Mapped[str] = mapped_column(String(50), nullable=True)  
     inisial: Mapped[str] = mapped_column(String(50), nullable=True)  # Specify length
     gelar_depan: Mapped[str] = mapped_column(String(50), nullable=True)  # Specify length
     nama_depan: Mapped[str] = mapped_column(String(100), nullable=True)  # Specify length
